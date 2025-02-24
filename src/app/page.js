@@ -1,78 +1,80 @@
 "use client";
-import React, { useState } from "react";
-import UploadPDF from "./components/UploadPDF";
-import ExtractedText from "./components/ExtractedText";
-import TextToSpeechControls from "./components/TextToSpeechControls";
-import { VscFilePdf } from "react-icons/vsc";
 
-export default function Home() {
-  const [text, setText] = useState("");
-  const [history, setHistory] = useState([]); // Historial de archivos cargados
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Controla si la barra lateral está abierta
+import React, { useState, useEffect } from "react";
+import SignIn from "./sign-in/SignIn";
+import Home from "./Home";
+import Swal from 'sweetalert2';
 
-  const handleTextExtracted = (extractedText, fileName) => {
-    setText(extractedText);
+function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-    // Agregar el archivo al historial si no está ya
-    setHistory((prevHistory) => {
-      const exists = prevHistory.some((item) => item.fileName === fileName);
-      if (!exists) {
-        return [...prevHistory, { fileName, text: extractedText }];
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      setIsAuthenticated(true);
+    } else {
+      setIsAuthenticated(false);
+    }
+  }, []);
+
+  // Función para manejar el inicio de sesión
+  const handleLogin = async (email, password) => {
+    try {
+      const response = await fetch("", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        localStorage.setItem("token", data.token); // Guardar el token en localStorage
+        setIsAuthenticated(true);
+
+        Swal.fire({
+          width: 300,
+          position: 'top-end',
+          icon: 'success',
+          title: '¡Bienvenido!',
+          text: 'Has iniciado sesión correctamente.',
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true,
+          toast: true,
+        });
+      } else {
+        Swal.fire({
+          width: 300,
+          position: 'top-end',
+          icon: 'error',
+          title: 'Error',
+          text: data.error || 'Credenciales incorrectas',
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true,
+          toast: true,
+        });
       }
-      return prevHistory;
-    });
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error en el servidor");
+    }
   };
 
-  const handleHistoryClick = (fileText) => {
-    setText(fileText);
-    setIsSidebarOpen(false); // Cierra el sidebar después de seleccionar un archivo
+  // Función para manejar el cierre de sesión
+  const handleLogout = () => {
+    localStorage.removeItem("token"); // Eliminar el token
+    setIsAuthenticated(false);
   };
 
   return (
-    <>
-    <div className="container mx-auto p-2 space-y-4 relative">
-      <UploadPDF onTextExtracted={handleTextExtracted} />
-      <ExtractedText text={text} setText={setText} />
-      <TextToSpeechControls text={text} />
-
-
-      {/* Botón para mostrar/ocultar el historial */}
-      <button
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="fixed top-4 right-4 p-3 bg-blue-600 text-white rounded shadow-lg hover:bg-blue-700 focus:outline-none z-50"
-        style={{
-          marginRight: isSidebarOpen ? "310px" : "0", // Mueve el botón cuando el sidebar esté abierto
-        }}
-      >
-        {isSidebarOpen ? "Cerrar historial" : "Abrir historial"}
-      </button>
-
-      {/* Sidebar deslizante */}
-      <div
-        className={`fixed top-0 right-0 h-full bg-blue-600 shadow-lg transition-transform duration-300 z-40 ${isSidebarOpen ? "translate-x-0" : "translate-x-full"}`}
-        style={{ width: "300px" }}
-      >
-        <div className="p-4">
-          <h2 className="text-lg font-bold mb-4 text-white-800">Historial de archivos</h2>
-          <ul className="space-y-4  rounded hover:bg-gray-600">
-            {history.map((item, index) => (
-              <li key={index} className="flex flex-col items-center">
-                <button
-                  onClick={() => handleHistoryClick(item.text)}
-                  className="flex flex-col items-center bg-white rounded text-black hover:text-red-900 focus:outline-none w-full"
-                >
-                  <VscFilePdf size={50} className="mb-2 mt-2" />
-                  <span className="text-sm mb-2 w-full text-center overflow-hidden text-ellipsis whitespace-nowrap">
-                    {item.fileName}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
+    <div>
+      {isAuthenticated ? (
+        <Home onLogout={handleLogout} />
+      ) : (
+        <SignIn onLogin={handleLogin} />
+      )}
     </div>
-    <div className="fixed right-4">Made by FAS</div>
-      </>
   );
 }
+
+export default App;

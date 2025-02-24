@@ -15,22 +15,30 @@ const TextToSpeechControls = ({ text }) => {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      setSynth(window.speechSynthesis);
-    }
+      const synth = window.speechSynthesis;
+      setSynth(synth);
 
-    // Calcular duración aproximada del texto al cargarlo
-    const words = text.split(" ").length;
-    setDuration(words * 0.25); // Suponemos 0.5 segundos por palabra
+      const handleVoicesChanged = () => {
+        const availableVoices = synth.getVoices();
+        setVoices(availableVoices);
+        if (availableVoices.length > 0) {
+          setSelectedVoice(availableVoices[0]); // Asigna la primera voz como predeterminada
+        }
+      };
 
-    // Cargar voces disponibles
-    if (synth) {
-      const availableVoices = synth.getVoices();
-      setVoices(availableVoices);
-      if (availableVoices.length > 0) {
-        setSelectedVoice(availableVoices[0]); // Asigna la primera voz como predeterminada
-      }
+      // Escuchar el evento voiceschanged
+      synth.addEventListener("voiceschanged", handleVoicesChanged);
+
+      // Calcular duración aproximada del texto al cargarlo
+      const words = text.split(" ").length;
+      setDuration(words * 0.25); // Suponemos 0.5 segundos por palabra
+
+      // Limpiar el evento al desmontar el componente
+      return () => {
+        synth.removeEventListener("voiceschanged", handleVoicesChanged);
+      };
     }
-  }, [text, synth]);
+  }, [text]);
 
   const handlePlay = () => {
     if (synth && selectedVoice) {
@@ -91,6 +99,10 @@ const TextToSpeechControls = ({ text }) => {
     const seconds = Math.floor(timeInSeconds % 60);
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
+
+  if (!synth) {
+    return null; // No renderizar nada hasta que synth esté listo
+  }
 
   return (
     <div className="p-4 bg-blue-600 rounded-lg shadow-md items-center">
